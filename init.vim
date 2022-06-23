@@ -37,7 +37,6 @@ call plug#begin('~/.vim/plugged')
   Plug 'L3MON4D3/LuaSnip' 
   Plug 'nvim-telescope/telescope.nvim'
   Plug 'kyazdani42/nvim-web-devicons'
-  Plug 'romgrk/barbar.nvim'
   Plug 'tpope/vim-fugitive'
   Plug 'hoob3rt/lualine.nvim'
   Plug 'lewis6991/gitsigns.nvim'
@@ -66,6 +65,7 @@ nnoremap <silent>    <A-6> :BufferGoto 6<CR>
 nnoremap <silent>    <A-7> :BufferGoto 7<CR>
 nnoremap <silent>    <A-8> :BufferGoto 8<CR>
 nnoremap <silent>    <A-9> :BufferLast<CR>
+nnoremap <silent>    <A-c> :BufferClose<CR>
 set termguicolors
 colorscheme everforest
 nnoremap n nzzzv
@@ -115,7 +115,12 @@ let g:gruvbox_insert_selection=0
 let g:gruvbox_contrast_dark='hard'
 let g:completion_matching_strategy_list=['exact', 'substring', 'fuzzy']
 lua << EOF
-require'nvim-tree'.setup{}
+require'nvim-tree'.setup{
+  update_focused_file = {
+    enable = true,
+    update_cwd = true,
+  },
+}
 local actions = require('telescope.actions')
 require('telescope').setup {
   defaults = {
@@ -168,10 +173,30 @@ local on_attach = function(client, bufnr)
 end
 -- Use a loop to conveniently call 'setup' on multiple servers and
 -- map buffer local keybindings when the language server attaches
-local servers = { 'tsserver', 'clangd' }
+local servers = { 'tsserver', 'clangd', 'rust_analyzer', 'graphql' }
 local capabilities = vim.lsp.protocol.make_client_capabilities()
 capabilities.textDocument.completion.completionItem.snippetSupport = true
 capabilities = require('cmp_nvim_lsp').update_capabilities(capabilities)
+  
+util = require "lspconfig/util"
+nvim_lsp.gopls.setup{
+	cmd = {'gopls'},
+  settings = {
+    gopls = {
+      analyses = {
+        nilness = true,
+        unusedparams = true,
+        unusedwrite = true,
+        useany = true,
+      },
+      experimentalPostfixCompletions = true,
+      gofumpt = true,
+      staticcheck = true,
+      usePlaceholders = true,
+    },
+  },
+	on_attach = on_attach,
+}
 nvim_lsp.diagnosticls.setup {
   on_attach = on_attach,
   filetypes = { 'javascript', 'javascriptreact', 'json', 'typescript', 'typescriptreact', 'css', 'less', 'scss'},
@@ -241,6 +266,7 @@ end
 nvim_lsp.svelte.setup{
 	on_attach = on_attach
 }
+
 local luasnip = require 'luasnip'
 local cmp = require 'cmp'
 cmp.setup {
@@ -304,30 +330,42 @@ vim.lsp.handlers["textDocument/publishDiagnostics"] = vim.lsp.with(
   }
 )
 local opts = {
-    tools = { -- rust-tools options
-        autoSetHints = true,
-        hover_with_actions = true,
-        inlay_hints = {
-            show_parameter_hints = false,
-            parameter_hints_prefix = "",
-            other_hints_prefix = "",
-        },
-        runnables = {
-          use_telescope = true
-        },
+  -- rust-tools options
+  tools = {
+    autoSetHints = true,
+    hover_with_actions = true,
+    inlay_hints = {
+      show_parameter_hints = true,
+      parameter_hints_prefix = "",
+      other_hints_prefix = "",
+      },
     },
-    server = {
-        -- on_attach is a callback called when the language server attachs to the buffer
-        on_attach = on_attach,
-        settings = {
-            ["rust-analyzer"] = {
-                checkOnSave = {
-                    command = "clippy"
-                },
-            }
-        }
+
+  server = {
+    settings = {
+      ["rust-analyzer"] = {
+        assist = {
+          importEnforceGranularity = true,
+          importPrefix = "crate"
+          },
+        cargo = {
+          allFeatures = true
+          },
+        checkOnSave = {
+          -- default: `cargo check`
+          command = "clippy"
+          },
+        },
+        inlayHints = {
+          lifetimeElisionHints = {
+            enable = true,
+            useParameterNames = true
+          },
+        },
+      }
     },
 }
+require('rust-tools').setup(opts)
 
 require('rust-tools').setup(opts)
 local status, lualine = pcall(require, "lualine")
@@ -372,6 +410,9 @@ require'nvim-treesitter.configs'.setup {
     enable = false,
     disable = {},
   },
+  autotag = {
+    enable = true,
+  },
   ensure_installed = {
     "tsx",
     "json",
@@ -382,16 +423,34 @@ require'nvim-treesitter.configs'.setup {
     "cpp",
     "python",
     "rust",
-    "javascript"
+    "javascript",
+    "go"
   },
 
 }
-
-vim.g.bufferline = {
-  closable = true,
-  clickable = true,
-  icons = true,
-  insert_at_end = false,
-  insert_at_start = false
-}
+  function OrgImports(wait_ms)
+    local params = vim.lsp.util.make_range_params()
+    params.context = {only = {"source.organizeImports"}}
+    local result = vim.lsp.buf_request_sync(0, "textDocument/codeAction", params, wait_ms)
+    for _, res in pairs(result or {}) do
+      for _, r in pairs(res.result or {}) do
+        if r.edit then
+          vim.lsp.util.apply_workspace_edit(r.edit, "UTF-8")
+        else
+          vim.lsp.buf.execute_command(r.command)
+        end
+      end
+    end
+  end
 EOF
+fun! GoFumpt()
+  :silent !gofumpt -w %
+  :edit
+endfun
+autocmd FileType go map <buffer> <leader>p :call append(".", "fmt.Printf(\"%+v\\n\", )")<CR> <bar> :norm $a<CR><esc>j==$i
+autocmd FileType go map <buffer> <leader>e :call append(".", "if err != nil {return err}")<CR> <bar> :w<CR>
+autocmd BufWritePost *.go call GoFumpt()
+autocmd BufWritePost *.go :cex system('revive '..expand('%:p')) | cwindow
+
+
+autocmd BufWritePre *.go lua OrgImports(1000)
