@@ -37,6 +37,7 @@ call plug#begin('~/.vim/plugged')
   Plug 'L3MON4D3/LuaSnip' 
   Plug 'nvim-telescope/telescope.nvim'
   Plug 'kyazdani42/nvim-web-devicons'
+  Plug 'romgrk/barbar.nvim'
   Plug 'tpope/vim-fugitive'
   Plug 'hoob3rt/lualine.nvim'
   Plug 'lewis6991/gitsigns.nvim'
@@ -48,6 +49,7 @@ call plug#begin('~/.vim/plugged')
   Plug 'APZelos/blamer.nvim'
   Plug 'sbdchd/neoformat'
   Plug 'kyazdani42/nvim-tree.lua'
+  Plug 'nvim-lua/plenary.nvim'
 call plug#end()
 " Move to previous/next
 nnoremap <silent>    <A-,> :BufferPrevious<CR>
