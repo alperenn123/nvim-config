@@ -96,6 +96,7 @@ require('lazy').setup({
       'folke/neodev.nvim',
     },
   },
+  { "ellisonleao/gruvbox.nvim", priority = 1000 , config = true, opts = ...},
   {
       'windwp/nvim-autopairs',
       event = "InsertEnter",
@@ -114,7 +115,7 @@ require('lazy').setup({
         sorter = "case_sensitive",
       },
       view = {
-        width = 30,
+        adaptive_size = true,
       },
       renderer = {
         group_empty = true,
@@ -122,6 +123,9 @@ require('lazy').setup({
       filters = {
         dotfiles = true,
       },
+      update_focused_file = {
+        enable = true,
+      }
     }
   },
   {
@@ -251,16 +255,19 @@ require('lazy').setup({
       end,
     },
   },
-  {
-    "mcchrish/zenbones.nvim",
+  {'romgrk/barbar.nvim',
     dependencies = {
-      "rktjmp/lush.nvim"
+      'lewis6991/gitsigns.nvim', -- OPTIONAL: for git status
+      'nvim-tree/nvim-web-devicons', -- OPTIONAL: for file icons
     },
-    lazy = false, -- make sure we load this during startup if it is your main colorscheme
-    priority = 1000, -- make sure to load this before all the other start plugins
-    config = function()
-      vim.cmd [[ colorscheme zenbones ]]
-    end
+    init = function() vim.g.barbar_auto_setup = false end,
+    opts = {
+      -- lazy.nvim will automatically call setup for you. put your options here, anything missing will use the default:
+      -- animation = true,
+      -- insert_at_start = true,
+      -- …etc.
+    },
+    version = '^1.0.0', -- optional: only update when a new 1.x version is released
   },
   {
     -- Set lualine as statusline
@@ -345,6 +352,8 @@ vim.wo.number = true
 
 -- Enable mouse mode
 vim.o.mouse = 'a'
+vim.o.background = "dark" -- or "light" for light mode
+vim.cmd([[colorscheme gruvbox]])
 
 -- Sync clipboard between OS and Neovim.
 --  Remove this option if you want your OS clipboard to remain independent.
@@ -742,8 +751,8 @@ vim.o.keywordprg = ':help'
 local o = vim.o
 
 o.expandtab = true
-o.smartindent = true 
-o.tabstop = 2 
+o.smartindent = true
+o.tabstop = 2
 o.shiftwidth = 2
 local function opts(desc)
   return { noremap = true, silent = true, desc = desc }
